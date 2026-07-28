@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hishab">
+<title>Hishab · Quick Log</title>
+<style>
+  :root{
+    --paper:#F1F4F0;
+    --surface:#FFFFFF;
+    --ink:#171A17;
+    --muted:#6B726C;
+    --line:#E2E6E1;
+    --line-strong:#CDD4CC;
+    --pine:#2C5F4F;
+    --in:#1E7A5A;
+    --out:#A63D40;
+    --radius:14px;
+    --mono:ui-monospace,"SF Mono","Roboto Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--sans);
+    background:var(--paper);
+    color:var(--ink);
+    line-height:1.4;
+    padding:0 0 40px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:0 14px;}
+
+  header{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding:20px 2px 14px;
+  }
+  header .title{font-size:20px;font-weight:700;letter-spacing:-0.02em;}
+  header .title span{color:var(--pine);}
+  header .sub{font-size:12px;color:var(--muted);font-family:var(--mono);}
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px 14px;
+    margin-bottom:14px;
+  }
+
+  .row-top{display:flex;gap:10px;align-items:center;margin-bottom:14px;}
+  .date-field{flex:1;}
+  label.lbl{
+    display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;
+    color:var(--muted);margin:0 0 7px 2px;font-weight:600;
+  }
+  input[type="date"],input.desc,select.field{
+    width:100%;font-family:var(--sans);font-size:16px;color:var(--ink);
+    background:var(--paper);border:1px solid var(--line);border-radius:10px;
+    padding:11px 12px;outline:none;
+  }
+  input[type="date"]{font-family:var(--mono);}
+  input:focus,select.field:focus{border-color:var(--pine);}
+
+  /* custom select */
+  .select-wrap{position:relative;}
+  .select-wrap::after{
+    content:"";position:absolute;right:14px;top:50%;width:8px;height:8px;
+    border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
+    transform:translateY(-70%) rotate(45deg);pointer-events:none;
+  }
+  select.field{
+    appearance:none;-webkit-appearance:none;-moz-appearance:none;
+    padding-right:34px;cursor:pointer;
+  }
+  select.field.placeholder{color:var(--muted);}
+
+  /* amount block */
+  .amount-block{display:flex;align-items:stretch;gap:10px;margin-bottom:4px;}
+  .amount-wrap{
+    flex:1;display:flex;align-items:center;gap:6px;
+    background:var(--paper);border:1px solid var(--line);border-radius:12px;
+    padding:6px 12px;
+  }
+  .amount-wrap:focus-within{border-color:var(--pine);}
+  .cur{font-size:26px;color:var(--muted);font-family:var(--mono);}
+  input.amount{
+    flex:1;width:100%;border:none;background:transparent;outline:none;
+    font-family:var(--mono);font-size:30px;font-weight:600;letter-spacing:-0.01em;
+    color:var(--ink);padding:6px 0;min-width:0;
+  }
+  input.amount.is-out{color:var(--out);}
+  input.amount.is-in{color:var(--in);}
+  .toggle{
+    display:flex;flex-direction:column;border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;width:70px;flex:none;
+  }
+  .toggle button{
+    flex:1;border:none;background:var(--surface);color:var(--muted);
+    font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:0.02em;
+    padding:0;cursor:pointer;
+  }
+  .toggle button.on[data-dir="out"]{background:var(--out);color:#fff;}
+  .toggle button.on[data-dir="in"]{background:var(--in);color:#fff;}
+  .toggle button+button{border-top:1px solid var(--line);}
+
+  .section{margin-top:16px;}
+  .two-col{display:flex;gap:10px;}
+  .two-col > div{flex:1;}
+
+  /* second leg */
+  .addleg{
+    margin-top:14px;background:none;border:1px dashed var(--line-strong);
+    color:var(--muted);border-radius:10px;padding:10px;width:100%;
+    font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;
+  }
+  .leg{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);}
+  .leg-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .leg-head .lbl{margin:0;}
+  .leg-remove{background:none;border:none;color:var(--out);font-size:13px;font-weight:600;cursor:pointer;padding:0;}
+  .hidden{display:none;}
+
+  .save{
+    margin-top:16px;width:100%;background:var(--pine);color:#fff;border:none;
+    border-radius:12px;padding:15px;font-family:var(--sans);font-size:16px;
+    font-weight:700;letter-spacing:0.01em;cursor:pointer;
+  }
+  .save:active{opacity:.9;}
+  .save:disabled{background:var(--line-strong);color:#fff;}
+
+  /* pending */
+  .pending-head{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 10px;}
+  .pending-head .t{font-size:14px;font-weight:700;}
+  .pending-head .t b{color:var(--pine);}
+  .actions{display:flex;gap:8px;}
+  .minibtn{
+    border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);
+    border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;
+    font-family:var(--sans);cursor:pointer;
+  }
+  .minibtn.danger{color:var(--out);border-color:#E7C9CB;}
+
+  .ledger{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+  .empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:13px;}
+  .item{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);}
+  .item:last-child{border-bottom:none;}
+  .item .meta{flex:1;min-width:0;}
+  .item .l1{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .item .l2{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px;}
+  .item .amt{font-family:var(--mono);font-size:15px;font-weight:600;white-space:nowrap;}
+  .item .amt.out{color:var(--out);}
+  .item .amt.in{color:var(--in);}
+  .item .x{border:none;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 4px;cursor:pointer;}
+
+  /* export sheet */
+  .export-panel{margin-top:12px;}
+  textarea.out{
+    width:100%;height:150px;font-family:var(--mono);font-size:12px;line-height:1.6;
+    border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--paper);
+    color:var(--ink);resize:vertical;outline:none;
+  }
+  .copy{margin-top:8px;width:100%;background:var(--ink);color:#fff;border:none;border-radius:11px;padding:12px;font-weight:700;font-size:14px;cursor:pointer;font-family:var(--sans);}
+  .hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;}
+
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:11px 18px;border-radius:999px;font-size:13px;
+    font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:50;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title">Hi<span>shab</span> · log</div>
+    <div class="sub" id="pendCount">0 pending</div>
+  </header>
+
+  <!-- ENTRY CARD -->
+  <div class="card">
+    <div class="row-top">
+      <div class="date-field">
+        <label class="lbl">Date</label>
+        <input type="date" id="date">
+      </div>
+    </div>
+
+    <label class="lbl">Amount</label>
+    <div class="amount-block">
+      <div class="amount-wrap">
+        <span class="cur">৳</span>
+        <input class="amount is-out" id="amount" inputmode="decimal" placeholder="0" autocomplete="off">
+      </div>
+      <div class="toggle" id="dirToggle">
+        <button type="button" data-dir="out" class="on">Out</button>
+        <button type="button" data-dir="in">In</button>
+      </div>
+    </div>
+
+    <div class="section two-col">
+      <div>
+        <label class="lbl">Category</label>
+        <div class="select-wrap">
+          <select class="field placeholder" id="cat"></select>
+        </div>
+      </div>
+      <div>
+        <label class="lbl">Account</label>
+        <div class="select-wrap">
+          <select class="field placeholder" id="acct"></select>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="addleg" id="addLeg">+ add second account (transfer)</button>
+    <div class="leg hidden" id="legPanel">
+      <div class="leg-head">
+        <label class="lbl">Second account</label>
+        <button type="button" class="leg-remove" id="removeLeg">remove</button>
+      </div>
+      <div class="amount-block">
+        <div class="amount-wrap">
+          <span class="cur">৳</span>
+          <input class="amount is-in" id="amount2" inputmode="decimal" placeholder="0" autocomplete="off">
+        </div>
+        <div class="toggle" id="dirToggle2">
+          <button type="button" data-dir="out">Out</button>
+          <button type="button" data-dir="in" class="on">In</button>
+        </div>
+      </div>
+      <div class="select-wrap" style="margin-top:12px;">
+        <select class="field placeholder" id="acct2"></select>
+      </div>
+    </div>
+
+    <div class="section">
+      <label class="lbl">Description</label>
+      <input class="desc" id="desc" placeholder="e.g. Rickshaw to Mirpur DOHS" autocomplete="off">
+    </div>
+
+    <button class="save" id="save">Save entry</button>
+  </div>
+
+  <!-- PENDING -->
+  <div class="pending-head">
+    <div class="t">Pending <b id="pendNum">0</b></div>
+    <div class="actions">
+      <button class="minibtn" id="exportBtn">Export</button>
+      <button class="minibtn danger" id="clearBtn">Clear all</button>
+    </div>
+  </div>
+  <div class="ledger" id="ledger">
+    <div class="empty">No entries yet. Logged expenses show up here until you reconcile.</div>
+  </div>
+
+  <div class="export-panel hidden" id="exportPanel">
+    <textarea class="out" id="exportText" readonly></textarea>
+    <button class="copy" id="copyBtn">Copy for reconcile</button>
+    <div class="hint">Copy this, paste it to Claude, and say &ldquo;reconcile.&rdquo; After Claude gives you the sheet rows and you&rsquo;ve pasted them into Google Sheets, tap <b>Clear all</b> to empty this list.</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  var CATS = ["Epilogue","Food","Gift","Home","Loan","Personal","Pubu","Transfer","Transport"];
+  var ACCTS = ["SCB","UCB","Bkash","Cash","Savings","Reserve"];
+  var KEY = "hishab_pending_v1";
+
+  var state = { dir:"out", dir2:"in", legOpen:false, editId:null };
+  var pending = [];
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  /* ---------- storage ---------- */
+  async function load(){
+    try{
+      var r = await window.storage.get(KEY);
+      pending = r && r.value ? JSON.parse(r.value) : [];
+    }catch(e){ pending = []; }
+    renderPending();
+  }
+  async function persist(){
+    try{ await window.storage.set(KEY, JSON.stringify(pending)); }
+    catch(e){ toast("Couldn't save — try again"); }
+  }
+
+  /* ---------- populate selects ---------- */
+  function fillSelect(sel, items, placeholder){
+    sel.innerHTML = "";
+    var o0 = document.createElement("option");
+    o0.value=""; o0.textContent=placeholder; o0.disabled=true; o0.selected=true;
+    sel.appendChild(o0);
+    items.forEach(function(name){
+      var o=document.createElement("option"); o.value=name; o.textContent=name;
+      sel.appendChild(o);
+    });
+  }
+  fillSelect($("cat"), CATS, "Select category");
+  fillSelect($("acct"), ACCTS, "Select account");
+  fillSelect($("acct2"), ACCTS, "Select account");
+
+  function wirePlaceholder(sel, onChange){
+    sel.addEventListener("change", function(){
+      sel.classList.toggle("placeholder", sel.value==="");
+      if(onChange) onChange();
+    });
+  }
+  wirePlaceholder($("cat"), refreshSave);
+  wirePlaceholder($("acct"), refreshSave);
+  wirePlaceholder($("acct2"), null);
+
+  /* ---------- direction toggles ---------- */
+  function wireToggle(toggleEl, amountEl, which){
+    Array.prototype.forEach.call(toggleEl.children, function(btn){
+      btn.addEventListener("click", function(){
+        Array.prototype.forEach.call(toggleEl.children, function(b){ b.classList.remove("on"); });
+        btn.classList.add("on");
+        var dir = btn.dataset.dir;
+        if(which===1){ state.dir=dir; } else { state.dir2=dir; }
+        amountEl.classList.toggle("is-out", dir==="out");
+        amountEl.classList.toggle("is-in", dir==="in");
+      });
+    });
+  }
+  wireToggle($("dirToggle"), $("amount"), 1);
+  wireToggle($("dirToggle2"), $("amount2"), 2);
+
+  /* ---------- second leg ---------- */
+  $("addLeg").addEventListener("click", function(){
+    state.legOpen = true;
+    $("legPanel").classList.remove("hidden");
+    $("addLeg").classList.add("hidden");
+  });
+  $("removeLeg").addEventListener("click", function(){
+    state.legOpen = false;
+    $("amount2").value = "";
+    $("acct2").value=""; $("acct2").classList.add("placeholder");
+    $("legPanel").classList.add("hidden");
+    $("addLeg").classList.remove("hidden");
+  });
+
+  /* ---------- date default ---------- */
+  function today(){
+    var d = new Date(), p=function(n){return (n<10?"0":"")+n;};
+    return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+  }
+  $("date").value = today();
+
+  /* ---------- helpers ---------- */
+  function ddmmyyyy(iso){
+    if(!iso) return "";
+    var parts = iso.split("-");
+    return parts[2]+"/"+parts[1]+"/"+parts[0];
+  }
+  function signed(dir, raw){
+    var n = parseFloat(String(raw).replace(/,/g,""));
+    if(isNaN(n)) return null;
+    n = Math.abs(n);
+    return dir==="out" ? -n : n;
+  }
+  function fmt(n){ return (Math.round(n*100)/100).toString(); }
+  function refreshSave(){
+    var amt = parseFloat(String($("amount").value).replace(/,/g,""));
+    $("save").disabled = !( !isNaN(amt) && amt!==0 && $("cat").value && $("acct").value );
+  }
+  $("amount").addEventListener("input", function(){
+    $("amount").classList.toggle("is-out", state.dir==="out");
+    $("amount").classList.toggle("is-in", state.dir==="in");
+    refreshSave();
+  });
+
+  /* ---------- save ---------- */
+  $("save").addEventListener("click", async function(){
+    var a1 = signed(state.dir, $("amount").value);
+    var cat=$("cat").value, acct=$("acct").value;
+    if(a1===null || a1===0 || !cat || !acct){ toast("Fill amount, category, account"); return; }
+    var entry = {
+      id: state.editId || (Date.now()+"-"+Math.random().toString(36).slice(2,6)),
+      date: $("date").value, cat:cat, acct:acct, amt:a1,
+      desc: $("desc").value.trim(), acct2:null, amt2:null
+    };
+    if(state.legOpen && $("acct2").value){
+      var a2 = signed(state.dir2, $("amount2").value);
+      if(a2!==null && a2!==0){ entry.acct2 = $("acct2").value; entry.amt2 = a2; }
+    }
+    if(state.editId){
+      pending = pending.map(function(p){ return p.id===state.editId ? entry : p; });
+    } else {
+      pending.push(entry);
+    }
+    await persist();
+    renderPending();
+    resetForm();
+    toast(state.editId ? "Updated" : "Saved");
+  });
+
+  function setSelect(sel, val){
+    sel.value = val || "";
+    sel.classList.toggle("placeholder", sel.value==="");
+  }
+
+  function resetForm(){
+    state.editId=null;
+    $("amount").value=""; $("desc").value="";
+    setSelect($("cat"), ""); setSelect($("acct"), "");
+    state.dir="out";
+    Array.prototype.forEach.call($("dirToggle").children,function(b){ b.classList.toggle("on", b.dataset.dir==="out"); });
+    $("amount").classList.remove("is-in"); $("amount").classList.add("is-out");
+    state.legOpen=false; $("amount2").value=""; setSelect($("acct2"), "");
+    $("legPanel").classList.add("hidden"); $("addLeg").classList.remove("hidden");
+    state.dir2="in";
+    Array.prototype.forEach.call($("dirToggle2").children,function(b){ b.classList.toggle("on", b.dataset.dir==="in"); });
+    $("amount2").classList.remove("is-out"); $("amount2").classList.add("is-in");
+    $("save").textContent="Save entry";
+    $("save").disabled=true;
+  }
+
+  /* ---------- edit ---------- */
+  function editEntry(id){
+    var e = pending.find(function(p){ return p.id===id; });
+    if(!e) return;
+    state.editId = id;
+    $("date").value = e.date;
+    $("amount").value = Math.abs(e.amt);
+    state.dir = e.amt<0 ? "out":"in";
+    Array.prototype.forEach.call($("dirToggle").children,function(b){ b.classList.toggle("on", b.dataset.dir===state.dir); });
+    $("amount").classList.toggle("is-out", state.dir==="out");
+    $("amount").classList.toggle("is-in", state.dir==="in");
+    setSelect($("cat"), e.cat); setSelect($("acct"), e.acct);
+    $("desc").value = e.desc || "";
+    if(e.acct2){
+      state.legOpen=true; $("legPanel").classList.remove("hidden"); $("addLeg").classList.add("hidden");
+      $("amount2").value=Math.abs(e.amt2);
+      state.dir2 = e.amt2<0 ? "out":"in";
+      Array.prototype.forEach.call($("dirToggle2").children,function(b){ b.classList.toggle("on", b.dataset.dir===state.dir2); });
+      setSelect($("acct2"), e.acct2);
+    }
+    $("save").textContent="Update entry";
+    refreshSave();
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  async function removeEntry(id){
+    pending = pending.filter(function(p){ return p.id!==id; });
+    await persist(); renderPending();
+    if(state.editId===id) resetForm();
+  }
+
+  /* ---------- render pending ---------- */
+  function renderPending(){
+    var L = $("ledger");
+    $("pendNum").textContent = pending.length;
+    $("pendCount").textContent = pending.length + " pending";
+    if(pending.length===0){
+      L.innerHTML = '<div class="empty">No entries yet. Logged expenses show up here until you reconcile.</div>';
+      $("exportPanel").classList.add("hidden");
+      return;
+    }
+    L.innerHTML = "";
+    pending.forEach(function(e){
+      var item = document.createElement("div"); item.className="item";
+      var meta = document.createElement("div"); meta.className="meta";
+      var l1 = document.createElement("div"); l1.className="l1";
+      l1.textContent = e.desc && e.desc.length ? e.desc : e.cat;
+      var l2 = document.createElement("div"); l2.className="l2";
+      var dshort = ddmmyyyy(e.date).slice(0,5);
+      var acctLine = e.acct + (e.acct2 ? " → "+e.acct2 : "");
+      l2.textContent = dshort + "  ·  " + e.cat + "  ·  " + acctLine;
+      meta.appendChild(l1); meta.appendChild(l2);
+
+      var amt = document.createElement("div");
+      amt.className = "amt " + (e.amt<0?"out":"in");
+      amt.textContent = (e.amt<0?"−":"+") + "৳" + fmt(Math.abs(e.amt));
+
+      var x = document.createElement("button"); x.className="x"; x.innerHTML="&times;";
+      x.addEventListener("click", function(ev){ ev.stopPropagation(); removeEntry(e.id); });
+
+      meta.addEventListener("click", function(){ editEntry(e.id); });
+
+      item.appendChild(meta); item.appendChild(amt); item.appendChild(x);
+      L.appendChild(item);
+    });
+  }
+
+  /* ---------- export ---------- */
+  function buildExport(){
+    return pending.map(function(e){
+      var s = ddmmyyyy(e.date)+" | "+e.cat+" | "+(e.desc||"—")+" | "+e.acct+":"+fmt(e.amt);
+      if(e.acct2){ s += " | "+e.acct2+":"+fmt(e.amt2); }
+      return s;
+    }).join("\n");
+  }
+  $("exportBtn").addEventListener("click", function(){
+    if(pending.length===0){ toast("Nothing to export"); return; }
+    $("exportText").value = buildExport();
+    $("exportPanel").classList.remove("hidden");
+    $("exportPanel").scrollIntoView({behavior:"smooth",block:"nearest"});
+  });
+  $("copyBtn").addEventListener("click", function(){
+    var ta = $("exportText"); ta.select(); ta.setSelectionRange(0,99999);
+    var ok=false;
+    try{ ok = document.execCommand("copy"); }catch(e){}
+    if(navigator.clipboard){ navigator.clipboard.writeText(ta.value).then(function(){toast("Copied");},function(){ toast(ok?"Copied":"Select & copy manually"); }); }
+    else { toast(ok?"Copied":"Select & copy manually"); }
+  });
+
+  /* ---------- clear all ---------- */
+  $("clearBtn").addEventListener("click", async function(){
+    if(pending.length===0){ toast("Already empty"); return; }
+    if(!confirm("Clear all "+pending.length+" pending entries? Do this only after you've pasted them into your sheet.")) return;
+    pending = []; await persist(); renderPending(); resetForm();
+    $("exportPanel").classList.add("hidden");
+    toast("Cleared");
+  });
+
+  /* ---------- toast ---------- */
+  var toastTimer;
+  function toast(msg){
+    var t=$("toast"); t.textContent=msg; t.classList.add("show");
+    clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove("show"); },1600);
+  }
+
+  refreshSave();
+  load();
+})();
+</script>
+</body>
+</html>
