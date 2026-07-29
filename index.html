@@ -279,13 +279,13 @@
   /* ---------- storage ---------- */
   async function load(){
     try{
-      var r = await window.storage.get(KEY);
-      pending = r && r.value ? JSON.parse(r.value) : [];
+      var raw = localStorage.getItem(KEY);
+      pending = raw ? JSON.parse(raw) : [];
     }catch(e){ pending = []; }
     renderPending();
   }
   async function persist(){
-    try{ await window.storage.set(KEY, JSON.stringify(pending)); }
+    try{ localStorage.setItem(KEY, JSON.stringify(pending)); }
     catch(e){ toast("Couldn't save — try again"); }
   }
 
