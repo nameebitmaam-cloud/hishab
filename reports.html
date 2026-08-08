@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hishab Reports">
+<title>Hishab · Reports</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#F1F4F0; --surface:#FFFFFF; --ink:#171A17; --muted:#6B726C;
+    --line:#E2E6E1; --line-strong:#CDD4CC; --pine:#2C5F4F;
+    --mono:ui-monospace,"SF Mono","Roboto Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{font-family:var(--sans);background:var(--paper);color:var(--ink);padding:0 0 40px;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:720px;margin:0 auto;padding:0 14px;}
+  header{display:flex;align-items:center;justify-content:space-between;padding:20px 2px 14px;}
+  header .title{font-size:20px;font-weight:700;letter-spacing:-0.02em;}
+  header .title span{color:var(--pine);}
+  .headright{display:flex;align-items:center;gap:10px;}
+  .gear{border:1px solid var(--line-strong);background:var(--surface);width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;}
+  .refresh{border:1px solid var(--line-strong);background:var(--surface);width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 14px;margin-bottom:14px;}
+  .settings-panel{margin-bottom:14px;}
+  label.lbl{display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:0 0 7px 2px;font-weight:600;}
+  input[type="password"]{width:100%;font-family:var(--sans);font-size:16px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:11px 12px;outline:none;}
+  input:focus{border-color:var(--pine);}
+  .save{margin-top:12px;width:100%;background:var(--pine);color:#fff;border:none;border-radius:12px;padding:14px;font-family:var(--sans);font-size:15px;font-weight:700;cursor:pointer;}
+  .hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;}
+  .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+  .status-dot.ok{background:#1E7A5A;} .status-dot.bad{background:#A63D40;}
+  .hidden{display:none;}
+
+  .state{padding:40px 16px;text-align:center;color:var(--muted);font-size:14px;}
+  .chart-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .chart-inner{min-width:640px;height:360px;position:relative;}
+
+  .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+  .stat .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;}
+  .stat .v{font-family:var(--mono);font-size:18px;font-weight:700;margin-top:4px;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);}
+  .leg-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);}
+  .leg-swatch{width:10px;height:10px;border-radius:3px;flex:none;}
+
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:999px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:50;max-width:88%;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title">Hi<span>shab</span> · reports</div>
+    <div class="headright">
+      <button class="refresh" id="refreshBtn" type="button">↻</button>
+      <button class="gear" id="gearBtn" type="button">⚙</button>
+    </div>
+  </header>
+
+  <div class="card settings-panel hidden" id="settingsPanel">
+    <label class="lbl">Sheet secret</label>
+    <input type="password" id="secretInput" placeholder="Enter the secret from your script" autocomplete="off">
+    <div class="hint" id="secretStatus"></div>
+    <button class="save" id="saveSecret">Save secret on this device</button>
+  </div>
+
+  <div class="summary-grid" id="summaryGrid"></div>
+
+  <div class="card">
+    <div id="stateMsg" class="state">Loading…</div>
+    <div class="chart-scroll hidden" id="chartWrap">
+      <div class="chart-inner"><canvas id="chart"></canvas></div>
+    </div>
+    <div class="legend hidden" id="legend"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  var WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxUHLiUkJlMCbYpAF33-gjmmPygsMpjDkILk137HbpQUOIDPKv_0ArywO90KT343aLvQw/exec";
+  var SECRET_KEY = "hishab_secret_v1"; // shared with the quick-log tool on the same domain
+  var COLORS = {
+    Epilogue:"#2C5F4F", Food:"#C77D3F", Gift:"#A63D40", Home:"#4472A6",
+    Loan:"#8A6BAA", Personal:"#3F8F8F", Pubu:"#B5892E", Transfer:"#8C8F86", Transport:"#5C6B4C"
+  };
+  var chartInstance = null;
+  var $ = function(id){ return document.getElementById(id); };
+
+  function getSecret(){ try{ return localStorage.getItem(SECRET_KEY) || ""; }catch(e){ return ""; } }
+  function setSecret(v){ try{ localStorage.setItem(SECRET_KEY, v); }catch(e){} }
+
+  function refreshSecretStatus(){
+    var s = getSecret(), el = $("secretStatus");
+    el.innerHTML = s
+      ? '<span class="status-dot ok"></span>Secret is set on this device.'
+      : '<span class="status-dot bad"></span>No secret set — reports won\u2019t load until you set one.';
+  }
+  $("gearBtn").addEventListener("click", function(){
+    $("settingsPanel").classList.toggle("hidden");
+    $("secretInput").value = "";
+    refreshSecretStatus();
+  });
+  $("saveSecret").addEventListener("click", function(){
+    var v = $("secretInput").value.trim();
+    if(!v){ toast("Enter a secret first"); return; }
+    setSecret(v); $("secretInput").value=""; refreshSecretStatus();
+    toast("Secret saved — loading report…");
+    $("settingsPanel").classList.add("hidden");
+    load();
+  });
+
+  function monthLabel(key){
+    var parts = key.split("-");
+    var names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return names[parseInt(parts[1],10)-1] + " " + parts[0].slice(2);
+  }
+  function fmtBDT(n){
+    return "৳" + Math.round(n).toLocaleString("en-IN");
+  }
+
+  function renderSummary(months, data){
+    var grid = $("summaryGrid"); grid.innerHTML = "";
+    if(months.length===0) return;
+    var lastKey = months[months.length-1];
+    var lastTotal = 0;
+    Object.keys(data[lastKey]||{}).forEach(function(c){ lastTotal += data[lastKey][c]; });
+    var allTotal = 0, count = 0;
+    months.forEach(function(mk){
+      var t=0; Object.keys(data[mk]).forEach(function(c){ t += data[mk][c]; });
+      allTotal += t; count++;
+    });
+    var avg = count ? allTotal/count : 0;
+
+    var stats = [
+      {k: monthLabel(lastKey) + " total", v: fmtBDT(lastTotal)},
+      {k: "Monthly average", v: fmtBDT(avg)}
+    ];
+    stats.forEach(function(s){
+      var d = document.createElement("div"); d.className="stat";
+      d.innerHTML = '<div class="k">'+s.k+'</div><div class="v">'+s.v+'</div>';
+      grid.appendChild(d);
+    });
+  }
+
+  function renderChart(months, categories, data){
+    var labels = months.map(monthLabel);
+    var datasets = categories.map(function(cat){
+      return {
+        label: cat,
+        data: months.map(function(mk){ return Math.round((data[mk] && data[mk][cat]) || 0); }),
+        backgroundColor: COLORS[cat] || "#999999",
+        borderRadius: 2
+      };
+    });
+
+    $("chartWrap").classList.remove("hidden");
+    var ctx = $("chart").getContext("2d");
+    if(chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(ctx, {
+      type: "bar",
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          x: { stacked: true, grid: { display:false }, ticks:{ font:{family:"monospace", size:11} } },
+          y: { stacked: true, grid: { color:"#E2E6E1" }, ticks:{ font:{family:"monospace", size:11},
+                callback:function(v){ return "৳"+ (v>=1000? (v/1000)+"k": v); } } }
+        },
+        plugins: { legend: { display:false },
+          tooltip: { callbacks: { label:function(c){ return c.dataset.label+": "+fmtBDT(c.parsed.y); } } } }
+      }
+    });
+
+    var lg = $("legend"); lg.innerHTML = ""; lg.classList.remove("hidden");
+    categories.forEach(function(cat){
+      var it = document.createElement("div"); it.className="leg-item";
+      it.innerHTML = '<span class="leg-swatch" style="background:'+(COLORS[cat]||"#999")+'"></span>'+cat;
+      lg.appendChild(it);
+    });
+  }
+
+  function load(){
+    var secret = getSecret();
+    if(!secret){
+      $("stateMsg").textContent = "Set your secret (⚙) to load your report.";
+      $("stateMsg").classList.remove("hidden");
+      $("chartWrap").classList.add("hidden");
+      $("legend").classList.add("hidden");
+      return;
+    }
+    $("stateMsg").classList.remove("hidden");
+    $("stateMsg").textContent = "Loading…";
+    $("chartWrap").classList.add("hidden");
+    $("legend").classList.add("hidden");
+
+    fetch(WEBAPP_URL + "?secret=" + encodeURIComponent(secret))
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if(!res || !res.ok){
+          $("stateMsg").textContent = "Couldn't load: " + (res && res.error ? res.error : "unknown error");
+          return;
+        }
+        if(res.months.length===0){
+          $("stateMsg").textContent = "No expense data found yet.";
+          return;
+        }
+        $("stateMsg").classList.add("hidden");
+        renderSummary(res.months, res.data);
+        renderChart(res.months, res.categories, res.data);
+      })
+      .catch(function(){
+        $("stateMsg").textContent = "Couldn't reach your sheet — check your connection.";
+      });
+  }
+
+  $("refreshBtn").addEventListener("click", function(){ toast("Refreshing…"); load(); });
+
+  var toastTimer;
+  function toast(msg){
+    var t=$("toast"); t.textContent=msg; t.classList.add("show");
+    clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove("show"); },1800);
+  }
+
+  if(!getSecret()){ $("settingsPanel").classList.remove("hidden"); refreshSecretStatus(); }
+  load();
+})();
+</script>
+</body>
+</html>
